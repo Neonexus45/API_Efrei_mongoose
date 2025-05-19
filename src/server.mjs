@@ -8,6 +8,8 @@ import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import rateLimit from 'express-rate-limit';
+import https from 'https';
+import selfsigned from 'selfsigned';
 
 // Core
 import config from './config.mjs';
@@ -96,8 +98,8 @@ const Server = class Server {
         },
         servers: [
           {
-            url: `http://localhost:${this.config.port}`,
-            description: 'Serveur de développement'
+            url: `https://localhost:${this.config.port}`,
+            description: 'Serveur de développement (HTTPS)'
           }
         ],
         components: {
@@ -142,9 +144,33 @@ const Server = class Server {
       this.security();
       this.middleware();
       this.routes();
-      this.app.listen(this.config.port);
+
+      // Setup for self-signed SSL certificate
+      const attrs = [{ name: 'commonName', value: 'localhost' }];
+      const pems = selfsigned.generate(attrs, {
+        keySize: 2048, // the size for the private key in bits (default: 1024)
+        days: 365, // how long till expiry of the signed certificate (default: 365)
+        algorithm: 'sha256', // sign the certificate with specified algorithm (default: sha256)
+        // extensions: [{ name: 'basicConstraints', cA: true }], // certificate extensions (default: [])
+        // pkcs7: true, // include PKCS#7 as part of the output (default: false)
+        // clientCertificate: true, // generate client cert signed by the original key (default: false)
+        // clientCertificateCN: 'John Doe' // client certificate common name (default: 'John Doe jdoe123')
+      });
+
+      const httpsOptions = {
+        key: pems.private,
+        cert: pems.cert,
+      };
+
+      const httpsServer = https.createServer(httpsOptions, this.app);
+
+      httpsServer.listen(this.config.port, () => {
+        console.log(`[API START] HTTPS Server running on https://localhost:${this.config.port}`);
+        console.log(`[API DOCS] Swagger UI available at https://localhost:${this.config.port}/api-docs`);
+      });
+
     } catch (err) {
-      console.error(`[ERROR] Server -> ${err}`);
+      console.error(`[ERROR] Server run() -> ${err}`);
     }
   }
 };

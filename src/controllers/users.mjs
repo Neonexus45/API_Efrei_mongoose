@@ -62,7 +62,7 @@ const Users = class Users {
         });
 
         const errors_val = validator.run();
-        if (errors_val) {
+        if (errors_val.length > 0) {
           return res.status(400).json({
             code: 400,
             message: 'Validation failed',
@@ -256,7 +256,7 @@ const Users = class Users {
         });
 
         const errors_val = validator.run();
-        if (errors_val) {
+        if (errors_val.length > 0) {
           return res.status(400).json({
             code: 400,
             message: 'Validation failed',
