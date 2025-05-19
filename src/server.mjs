@@ -65,7 +65,9 @@ const Server = class Server {
 
   middleware() {
     this.app.use(compression());
-    this.app.use(cors());
+    this.app.use(cors({
+      origin: ['http://localhost:8080', 'http://localhost:3000']
+    }));
     this.app.use(bodyParser.urlencoded({ extended: true }));
     this.app.use(bodyParser.json());
 
