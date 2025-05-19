@@ -7,6 +7,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
+import rateLimit from 'express-rate-limit';
 
 // Core
 import config from './config.mjs';
@@ -64,6 +65,19 @@ const Server = class Server {
   }
 
   middleware() {
+    // Rate Limiter: 10 requests per hour per IP
+    const limiter = rateLimit({
+      windowMs: 60 * 60 * 1000, // 1 hour
+      max: 10, // Limit each IP to 10 requests per `window` (here, per hour)
+      standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+      legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+      message: {
+        status: 429,
+        message: 'Too many requests created from this IP, please try again after an hour'
+      }
+    });
+    this.app.use(limiter); // Apply the rate limiting middleware to all requests
+
     this.app.use(compression());
     this.app.use(cors({
       origin: ['http://localhost:8080', 'http://localhost:3000']
