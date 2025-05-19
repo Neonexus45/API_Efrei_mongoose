@@ -61,12 +61,12 @@ const Users = class Users {
           obj('lastname').required().isString();
         });
 
-        const errors_val = validator.run();
-        if (errors_val.length > 0) {
+        const validationErrorsLogin = validator.run();
+        if (validationErrorsLogin.length > 0) {
           return res.status(400).json({
             code: 400,
             message: 'Validation failed',
-            errors: errors_val
+            errors: validationErrorsLogin
           });
         }
 
@@ -80,8 +80,6 @@ const Users = class Users {
           });
         }
 
-        // NOTE: This is insecure. In a real application, passwords should be hashed and compared.
-        // For now, we are just checking if the user exists based on firstname and lastname.
 
         const token = jwt.sign(
           { id: user.id, firstname: user.firstname, lastname: user.lastname },
@@ -91,7 +89,7 @@ const Users = class Users {
 
         return res.status(200).json({ token });
       } catch (err) {
-        console.error(`[ERROR] user/login -> ${err.message}`); // Log specific error message
+        console.error(`[ERROR] user/login -> ${err.message}`);
         return res.status(500).json({
           code: 500,
           message: 'An unexpected error occurred during login.'
@@ -250,21 +248,20 @@ const Users = class Users {
         validator(req.body).required().isObject(obj => {
           obj('firstname').required().isString().isLength(2, 50);
           obj('lastname').required().isString().isLength(2, 50);
-          obj('avatar').isString(); // Removed .optional() - field is optional by not being .required()
-          obj('age').isNumber(); // Removed .optional()
-          obj('city').isString().isLength(1, 100); // Removed .optional()
+          obj('avatar').isString();
+          obj('age').isNumber();
+          obj('city').isString().isLength(1, 100);
         });
 
-        const errors_val = validator.run();
-        if (errors_val.length > 0) {
+        const validationErrorsCreate = validator.run();
+        if (validationErrorsCreate.length > 0) {
           return res.status(400).json({
             code: 400,
             message: 'Validation failed',
-            errors: errors_val
+            errors: validationErrorsCreate
           });
         }
 
-        // If validation passes, proceed
         const userModel = new this.UserModel(req.body);
 
         userModel.save()
@@ -280,7 +277,7 @@ const Users = class Users {
             return res.status(201).json({ user, token });
           })
           .catch((errSave) => {
-            console.error(`[ERROR] users/create save -> ${errSave.message}`); // Log specific error
+            console.error(`[ERROR] users/create save -> ${errSave.message}`);
             if (errSave.code === 11000) {
               return res.status(409).json({
                 code: 409,
@@ -292,8 +289,8 @@ const Users = class Users {
               message: 'Error saving user'
             });
           });
-      } catch (err) { // Catches errors from validator, UserModel instantiation, or other synchronous issues
-        console.error(`[ERROR] POST /user/ create processing -> ${err.message}`); // Log specific error
+      } catch (err) {
+        console.error(`[ERROR] POST /user/ create processing -> ${err.message}`);
         return res.status(500).json({
           code: 500,
           message: 'An unexpected error occurred during user creation.'
@@ -306,7 +303,7 @@ const Users = class Users {
     this.create();
     this.showById();
     this.deleteById();
-    this.login(); // Add the login route
+    this.login();
   }
 };
 
