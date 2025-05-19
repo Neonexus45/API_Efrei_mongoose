@@ -5,6 +5,8 @@ import bodyParser from 'body-parser';
 import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
 
 // Core
 import config from './config.mjs';
@@ -66,6 +68,28 @@ const Server = class Server {
     this.app.use(cors());
     this.app.use(bodyParser.urlencoded({ extended: true }));
     this.app.use(bodyParser.json());
+
+    // Swagger UI Setup
+    const swaggerOptions = {
+      definition: {
+        openapi: '3.0.0',
+        info: {
+          title: 'API Efrei Mongoose',
+          version: '1.0.0',
+          description: "Documentation de l'API pour le projet Efrei Mongoose"
+        },
+        servers: [
+          {
+            url: `http://localhost:${this.config.port}`,
+            description: 'Serveur de développement'
+          }
+        ]
+      },
+      apis: ['./src/controllers/routes.mjs', './src/controllers/users.mjs', './src/controllers/photos.mjs', './src/controllers/albums.mjs']
+    };
+
+    const swaggerSpec = swaggerJsdoc(swaggerOptions);
+    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   }
 
   routes() {
