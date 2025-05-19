@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import Validator from 'better-validator';
 import UserModel from '../models/user.mjs';
 import config from '../config.mjs';
 import verifyToken from '../middleware/auth.mjs';
@@ -53,16 +54,23 @@ const Users = class Users {
      *         description: Erreur interne du serveur
      */
     this.app.post('/user/login', async (req, res) => {
-      try {
-        const { firstname, lastname } = req.body;
+      try { // Wrap validator and subsequent logic
+        const validator = new Validator();
+        validator(req.body).required().isObject(obj => {
+          obj('firstname').required().isString();
+          obj('lastname').required().isString();
+        });
 
-        if (!firstname || !lastname) {
+        const errors_val = validator.run();
+        if (errors_val) {
           return res.status(400).json({
             code: 400,
-            message: 'Firstname and lastname are required'
+            message: 'Validation failed',
+            errors: errors_val
           });
         }
 
+        const { firstname, lastname } = req.body;
         const user = await this.UserModel.findOne({ firstname, lastname });
 
         if (!user) {
@@ -83,10 +91,10 @@ const Users = class Users {
 
         return res.status(200).json({ token });
       } catch (err) {
-        console.error(`[ERROR] user/login -> ${err}`);
+        console.error(`[ERROR] user/login -> ${err.message}`); // Log specific error message
         return res.status(500).json({
           code: 500,
-          message: 'Internal Server error'
+          message: 'An unexpected error occurred during login.'
         });
       }
     });
@@ -236,13 +244,33 @@ const Users = class Users {
      *         description: Mauvaise requête
      */
     this.app.post('/user/', (req, res) => {
-      try {
+      try { // Wrap validator and all subsequent logic
+        const validator = new Validator();
+
+        validator(req.body).required().isObject(obj => {
+          obj('firstname').required().isString().isLength(2, 50);
+          obj('lastname').required().isString().isLength(2, 50);
+          obj('avatar').isString(); // Removed .optional() - field is optional by not being .required()
+          obj('age').isNumber(); // Removed .optional()
+          obj('city').isString().isLength(1, 100); // Removed .optional()
+        });
+
+        const errors_val = validator.run();
+        if (errors_val) {
+          return res.status(400).json({
+            code: 400,
+            message: 'Validation failed',
+            errors: errors_val
+          });
+        }
+
+        // If validation passes, proceed
         const userModel = new this.UserModel(req.body);
 
         userModel.save()
           .then((user) => {
             if (!user) {
-              return res.status(500).json({ code: 500, message: 'User creation failed unexpectedly.' });
+              return res.status(500).json({ code: 500, message: 'User creation failed after validation.' });
             }
             const token = jwt.sign(
               { id: user.id, firstname: user.firstname, lastname: user.lastname },
@@ -251,19 +279,24 @@ const Users = class Users {
             );
             return res.status(201).json({ user, token });
           })
-          .catch((errSave) => { // This block was also mostly correct.
-            console.error(`[ERROR] users/create save -> ${errSave}`);
+          .catch((errSave) => {
+            console.error(`[ERROR] users/create save -> ${errSave.message}`); // Log specific error
+            if (errSave.code === 11000) {
+              return res.status(409).json({
+                code: 409,
+                message: 'User with these details may already exist.'
+              });
+            }
             return res.status(500).json({
               code: 500,
               message: 'Error saving user'
             });
           });
-      } catch (err) {
-        console.error(`[ERROR] users/create -> ${err}`);
-
-        return res.status(400).json({
-          code: 400,
-          message: 'Bad request'
+      } catch (err) { // Catches errors from validator, UserModel instantiation, or other synchronous issues
+        console.error(`[ERROR] POST /user/ create processing -> ${err.message}`); // Log specific error
+        return res.status(500).json({
+          code: 500,
+          message: 'An unexpected error occurred during user creation.'
         });
       }
     });
