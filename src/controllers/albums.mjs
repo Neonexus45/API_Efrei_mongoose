@@ -1,4 +1,5 @@
 import AlbumModel from '../models/album.mjs';
+import verifyToken from '../middleware/auth.mjs';
 
 const Albums = class Albums {
   constructor(app, connect) {
@@ -29,6 +30,8 @@ const Albums = class Albums {
     *           type: string
     *         required: true
     *         description: L'ID de l'album
+    *     security:
+    *       - bearerAuth: []
     *     responses:
     *       200:
     *         description: Album trouvé
@@ -41,8 +44,10 @@ const Albums = class Albums {
     *       500:
     *         description: Erreur interne du serveur
      */
-    this.app.get('/album/:id', (req, res) => {
+    this.app.get('/album/:id', verifyToken, (req, res) => {
       try {
+        // Access user info from req.user if needed, e.g., for ownership checks
+        // console.log('Authenticated user:', req.user);
         this.AlbumModel.findById(req.params.id).populate('photos').then((album) => {
           res.status(200).json(album || {});
         }).catch(() => {
@@ -85,6 +90,8 @@ const Albums = class Albums {
      *               # Ajoutez ici les autres propriétés de votre AlbumModel
      *             required:
      *               - title
+     *     security:
+     *       - bearerAuth: []
      *     responses:
      *       201:
      *         description: Album créé avec succès
@@ -97,9 +104,10 @@ const Albums = class Albums {
      *       500:
      *         description: Erreur interne du serveur
      */
-    this.app.post('/album/', (req, res) => {
+    this.app.post('/album/', verifyToken, (req, res) => {
       try {
-        const albumModel = new this.AlbumModel(req.body);
+        // const userId = req.user.id; // Example: associate album with logged-in user
+        const albumModel = new this.AlbumModel({ ...req.body /* , userId */ });
 
         albumModel.save().then((album) => {
           res.status(201).json(album || {});
@@ -148,6 +156,8 @@ const Albums = class Albums {
      *                 type: string
      *                 example: Description mise à jour.
      *               # Ajoutez ici les autres propriétés de votre AlbumModel
+     *     security:
+     *       - bearerAuth: []
      *     responses:
      *       200:
      *         description: Album mis à jour avec succès
@@ -160,8 +170,9 @@ const Albums = class Albums {
      *       500:
      *         description: Erreur interne du serveur
      */
-    this.app.put('/album/:id', (req, res) => {
+    this.app.put('/album/:id', verifyToken, (req, res) => {
       try {
+        // Add ownership check here if necessary, e.g., ensure req.user.id matches album's owner
         this.AlbumModel.findByIdAndUpdate(req.params.id, req.body, { new: true }).then((album) => {
           res.status(200).json(album || {});
         }).catch(() => {
@@ -195,6 +206,8 @@ const Albums = class Albums {
      *           type: string
      *         required: true
      *         description: L'ID de l'album
+     *     security:
+     *       - bearerAuth: []
      *     responses:
      *       200:
      *         description: Album supprimé avec succès ou album non trouvé
@@ -207,8 +220,9 @@ const Albums = class Albums {
      *       500:
      *         description: Erreur interne du serveur
      */
-    this.app.delete('/album/:id', (req, res) => {
+    this.app.delete('/album/:id', verifyToken, (req, res) => {
       try {
+        // Add ownership check here
         this.AlbumModel.findByIdAndDelete(req.params.id).then((album) => {
           res.status(200).json(album || {});
         }).catch(() => {
@@ -235,6 +249,8 @@ const Albums = class Albums {
      *   get:
      *     summary: Obtenir tous les albums
      *     tags: [Albums]
+     *     security:
+     *       - bearerAuth: []
      *     responses:
      *       200:
      *         description: Une liste d'albums
@@ -249,8 +265,9 @@ const Albums = class Albums {
      *       500:
      *         description: Erreur interne du serveur
      */
-    this.app.get('/albums/', (req, res) => {
+    this.app.get('/albums/', verifyToken, (req, res) => {
       try {
+        // Potentially filter albums by req.user.id if they are user-specific
         this.AlbumModel.find().sort({ title: 1 }).populate('photos').then((albums) => {
           res.status(200).json(albums || []);
         })

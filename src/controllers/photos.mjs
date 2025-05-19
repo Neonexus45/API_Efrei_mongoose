@@ -1,5 +1,6 @@
 import Photo from '../models/photo.mjs';
 import Album from '../models/album.mjs';
+import verifyToken from '../middleware/auth.mjs';
 
 const Photos = class Photos {
   constructor(app, connect) {
@@ -30,6 +31,8 @@ const Photos = class Photos {
     *           type: string
     *         required: true
     *         description: L'ID de l'album
+    *     security:
+    *       - bearerAuth: []
     *     responses:
     *       200:
     *         description: Une liste de photos pour l'album
@@ -44,7 +47,7 @@ const Photos = class Photos {
     *       500:
     *         description: Erreur interne du serveur
      */
-    this.app.get('/albums/:idalbum/photos', (req, res) => {
+    this.app.get('/albums/:idalbum/photos', verifyToken, (req, res) => {
       try {
         console.log('[DEBUG] albums/:idalbum/photos -> idalbum = ', req.params.idalbum);
 
@@ -89,6 +92,8 @@ const Photos = class Photos {
      *           type: string
      *         required: true
      *         description: L'ID de la photo
+     *     security:
+     *       - bearerAuth: []
      *     responses:
      *       200:
      *         description: Photo trouvée
@@ -101,7 +106,7 @@ const Photos = class Photos {
      *       500:
      *         description: Erreur interne du serveur
      */
-    this.app.get('/albums/:idalbum/photo/:idphoto', (req, res) => {
+    this.app.get('/albums/:idalbum/photo/:idphoto', verifyToken, (req, res) => {
       try {
         this.PhotoModel.findById(req.params.idphoto).populate('album').then((photo) => {
           res.status(200).json(photo || {});
@@ -154,6 +159,8 @@ const Photos = class Photos {
      *             required:
      *               - title
      *               - imageUrl
+     *     security:
+     *       - bearerAuth: []
      *     responses:
      *       201:
      *         description: Photo ajoutée et album mis à jour avec succès
@@ -166,7 +173,7 @@ const Photos = class Photos {
      *       500:
      *         description: Erreur interne du serveur
      */
-    this.app.post('/albums/:idalbum/photo', (req, res) => {
+    this.app.post('/albums/:idalbum/photo', verifyToken, (req, res) => {
       try {
         const photoData = {
           ...req.body,
@@ -234,6 +241,8 @@ const Photos = class Photos {
      *                 format: url
      *                 example: http://example.com/magnifique_coucher_soleil.jpg
      *               # Ajoutez ici les autres propriétés modifiables de votre PhotoModel
+     *     security:
+     *       - bearerAuth: []
      *     responses:
      *       200:
      *         description: Photo mise à jour avec succès
@@ -246,7 +255,8 @@ const Photos = class Photos {
      *       500:
      *         description: Erreur interne du serveur
      */
-    this.app.put('/album/:idalbum/photo/:idphoto', (req, res) => {
+    // Assuming consistency, changing '/album/' to '/albums/' for this PUT route
+    this.app.put('/albums/:idalbum/photo/:idphoto', verifyToken, (req, res) => {
       try {
         this.PhotoModel.findByIdAndUpdate(
           req.params.idphoto,
@@ -291,6 +301,8 @@ const Photos = class Photos {
      *           type: string
      *         required: true
      *         description: L'ID de la photo à supprimer
+     *     security:
+     *       - bearerAuth: []
      *     responses:
      *       200:
      *         description: Photo supprimée avec succès ou photo non trouvée
@@ -303,7 +315,7 @@ const Photos = class Photos {
      *       500:
      *         description: Erreur interne du serveur
      */
-    this.app.delete('/albums/:idalbum/photo/:idphoto', (req, res) => {
+    this.app.delete('/albums/:idalbum/photo/:idphoto', verifyToken, (req, res) => {
       try {
         this.PhotoModel.findByIdAndDelete(req.params.idphoto).then((photo) => {
           res.status(200).json(photo || {});

@@ -85,7 +85,17 @@ const Server = class Server {
             url: `http://localhost:${this.config.port}`,
             description: 'Serveur de développement'
           }
-        ]
+        ],
+        components: {
+          securitySchemes: {
+            bearerAuth: {
+              type: 'http',
+              scheme: 'bearer',
+              bearerFormat: 'JWT',
+              description: 'Enter JWT Bearer token **_only_**'
+            }
+          }
+        }
       },
       apis: ['./src/controllers/routes.mjs', './src/controllers/users.mjs', './src/controllers/photos.mjs', './src/controllers/albums.mjs']
     };
