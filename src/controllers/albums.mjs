@@ -1,5 +1,6 @@
 import AlbumModel from '../models/album.mjs';
 import verifyToken from '../middleware/auth.mjs';
+import { validateRequest } from '../utils/validator.mjs';
 
 const Albums = class Albums {
   constructor(app, connect) {
@@ -46,8 +47,6 @@ const Albums = class Albums {
      */
     this.app.get('/album/:id', verifyToken, (req, res) => {
       try {
-        // Access user info from req.user if needed, e.g., for ownership checks
-        // console.log('Authenticated user:', req.user);
         this.AlbumModel.findById(req.params.id).populate('photos').then((album) => {
           res.status(200).json(album || {});
         }).catch(() => {
@@ -106,23 +105,37 @@ const Albums = class Albums {
      */
     this.app.post('/album/', verifyToken, (req, res) => {
       try {
-        // const userId = req.user.id; // Example: associate album with logged-in user
+        const validationErrors = validateRequest(req.body, (body) => {
+          body.required().isObject(obj => {
+            obj('title').required().isString().minLength(1);
+            obj('description').isString();
+          });
+        });
+
+        if (validationErrors.length > 0) {
+          return res.status(400).json({
+            code: 400,
+            message: 'Validation failed',
+            errors: validationErrors
+          });
+        }
+
         const albumModel = new this.AlbumModel({ ...req.body /* , userId */ });
 
         albumModel.save().then((album) => {
           res.status(201).json(album || {});
-        }).catch(() => {
+        }).catch((saveErr) => {
+          console.error(`[ERROR] albums/create save -> ${saveErr.message}`);
           res.status(500).json({
             code: 500,
-            message: 'Internal Server error'
+            message: 'Error saving album'
           });
         });
       } catch (err) {
-        console.error(`[ERROR] albums/ -> ${err}`);
-
-        res.status(400).json({
-          code: 400,
-          message: 'Bad request'
+        console.error(`[ERROR] POST /album/ -> ${err.message}`);
+        res.status(500).json({
+          code: 500,
+          message: 'An unexpected error occurred during album creation.'
         });
       }
     });
@@ -172,21 +185,38 @@ const Albums = class Albums {
      */
     this.app.put('/album/:id', verifyToken, (req, res) => {
       try {
-        // Add ownership check here if necessary, e.g., ensure req.user.id matches album's owner
+        const validationErrors = validateRequest(req.body, (body) => {
+          body.required().isObject(obj => {
+            obj('title').isString().minLength(1);
+            obj('description').isString();
+          });
+        });
+
+        if (validationErrors.length > 0) {
+          return res.status(400).json({
+            code: 400,
+            message: 'Validation failed',
+            errors: validationErrors
+          });
+        }
+
         this.AlbumModel.findByIdAndUpdate(req.params.id, req.body, { new: true }).then((album) => {
-          res.status(200).json(album || {});
-        }).catch(() => {
+          if (!album) {
+            return res.status(404).json({ code: 404, message: 'Album not found' });
+          }
+          res.status(200).json(album);
+        }).catch((updateErr) => {
+          console.error(`[ERROR] albums/update ${req.params.id} -> ${updateErr.message}`);
           res.status(500).json({
             code: 500,
-            message: 'Internal Server error'
+            message: 'Error updating album'
           });
         });
       } catch (err) {
-        console.error(`[ERROR] albums/:id -> ${err}`);
-
-        res.status(400).json({
-          code: 400,
-          message: 'Bad request'
+        console.error(`[ERROR] PUT /album/:id -> ${err.message}`);
+        res.status(500).json({
+          code: 500,
+          message: 'An unexpected error occurred during album update.'
         });
       }
     });
@@ -222,7 +252,6 @@ const Albums = class Albums {
      */
     this.app.delete('/album/:id', verifyToken, (req, res) => {
       try {
-        // Add ownership check here
         this.AlbumModel.findByIdAndDelete(req.params.id).then((album) => {
           res.status(200).json(album || {});
         }).catch(() => {
@@ -267,7 +296,6 @@ const Albums = class Albums {
      */
     this.app.get('/albums/', verifyToken, (req, res) => {
       try {
-        // Potentially filter albums by req.user.id if they are user-specific
         this.AlbumModel.find().sort({ title: 1 }).populate('photos').then((albums) => {
           res.status(200).json(albums || []);
         })

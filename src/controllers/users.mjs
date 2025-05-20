@@ -1,8 +1,8 @@
 import jwt from 'jsonwebtoken';
-import Validator from 'better-validator';
 import UserModel from '../models/user.mjs';
 import config from '../config.mjs';
 import verifyToken from '../middleware/auth.mjs';
+import { validateRequest } from '../utils/validator.mjs';
 
 const Users = class Users {
   constructor(app, connect) {
@@ -54,14 +54,14 @@ const Users = class Users {
      *         description: Erreur interne du serveur
      */
     this.app.post('/user/login', async (req, res) => {
-      try { // Wrap validator and subsequent logic
-        const validator = new Validator();
-        validator(req.body).required().isObject(obj => {
-          obj('firstname').required().isString();
-          obj('lastname').required().isString();
+      try {
+        const validationErrorsLogin = validateRequest(req.body, (body) => {
+          body.required().isObject(obj => {
+            obj('firstname').required().isString();
+            obj('lastname').required().isString();
+          });
         });
 
-        const validationErrorsLogin = validator.run();
         if (validationErrorsLogin.length > 0) {
           return res.status(400).json({
             code: 400,
@@ -242,18 +242,17 @@ const Users = class Users {
      *         description: Mauvaise requête
      */
     this.app.post('/user/', (req, res) => {
-      try { // Wrap validator and all subsequent logic
-        const validator = new Validator();
-
-        validator(req.body).required().isObject(obj => {
-          obj('firstname').required().isString().isLength(2, 50);
-          obj('lastname').required().isString().isLength(2, 50);
-          obj('avatar').isString();
-          obj('age').isNumber();
-          obj('city').isString().isLength(1, 100);
+      try {
+        const validationErrorsCreate = validateRequest(req.body, (body) => {
+          body.required().isObject(obj => {
+            obj('firstname').required().isString().minLength(2);
+            obj('lastname').required().isString().minLength(2);
+            obj('avatar').isString();
+            obj('age').isNumber();
+            obj('city').isString().minLength(1);
+          });
         });
 
-        const validationErrorsCreate = validator.run();
         if (validationErrorsCreate.length > 0) {
           return res.status(400).json({
             code: 400,

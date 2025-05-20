@@ -67,18 +67,17 @@ const Server = class Server {
   }
 
   middleware() {
-    // Rate Limiter: 10 requests per hour per IP
     const limiter = rateLimit({
-      windowMs: 60 * 60 * 1000, // 1 hour
-      max: 10, // Limit each IP to 10 requests per `window` (here, per hour)
-      standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-      legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+      windowMs: 60 * 60 * 1000,
+      max: 500,
+      standardHeaders: true,
+      legacyHeaders: false,
       message: {
         status: 429,
         message: 'Too many requests created from this IP, please try again after an hour'
       }
     });
-    this.app.use(limiter); // Apply the rate limiting middleware to all requests
+    this.app.use(limiter);
 
     this.app.use(compression());
     this.app.use(cors({
@@ -87,7 +86,6 @@ const Server = class Server {
     this.app.use(bodyParser.urlencoded({ extended: true }));
     this.app.use(bodyParser.json());
 
-    // Swagger UI Setup
     const swaggerOptions = {
       definition: {
         openapi: '3.0.0',
@@ -131,6 +129,26 @@ const Server = class Server {
         message: 'Not Found'
       });
     });
+
+    this.app.use((err, req, res, next) => {
+      console.error(`[GLOBAL ERROR HANDLER] Path: ${req.path}, Error: ${err.message}`, err.stack);
+
+      if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        return res.status(400).json({
+          code: 400,
+          message: 'Malformed JSON in request body. Please check your JSON syntax.'
+        });
+      }
+
+      const statusCode = typeof err.status === 'number' && err.status >= 400 && err.status < 600
+        ? err.status
+        : 500;
+      
+      return res.status(statusCode).json({
+        code: statusCode,
+        message: 'An unexpected server error occurred. Please try again later.'
+      });
+    });
   }
 
   security() {
@@ -145,16 +163,11 @@ const Server = class Server {
       this.middleware();
       this.routes();
 
-      // Setup for self-signed SSL certificate
       const attrs = [{ name: 'commonName', value: 'localhost' }];
       const pems = selfsigned.generate(attrs, {
-        keySize: 2048, // the size for the private key in bits (default: 1024)
-        days: 365, // how long till expiry of the signed certificate (default: 365)
-        algorithm: 'sha256', // sign the certificate with specified algorithm (default: sha256)
-        // extensions: [{ name: 'basicConstraints', cA: true }], // certificate extensions (default: [])
-        // pkcs7: true, // include PKCS#7 as part of the output (default: false)
-        // clientCertificate: true, // generate client cert signed by the original key (default: false)
-        // clientCertificateCN: 'John Doe' // client certificate common name (default: 'John Doe jdoe123')
+        keySize: 2048,
+        days: 365,
+        algorithm: 'sha256',
       });
 
       const httpsOptions = {

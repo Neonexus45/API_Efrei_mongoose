@@ -1,6 +1,7 @@
 import Photo from '../models/photo.mjs';
 import Album from '../models/album.mjs';
 import verifyToken from '../middleware/auth.mjs';
+import { validateRequest } from '../utils/validator.mjs';
 
 const Photos = class Photos {
   constructor(app, connect) {
@@ -175,32 +176,58 @@ const Photos = class Photos {
      */
     this.app.post('/albums/:idalbum/photo', verifyToken, (req, res) => {
       try {
+        const validationErrors = validateRequest(req.body, (body) => {
+          body.required().isObject(obj => {
+            obj('title').required().isString().minLength(1);
+            obj('imageUrl').required().isString(); 
+          });
+        });
+
+        if (validationErrors.length > 0) {
+          return res.status(400).json({
+            code: 400,
+            message: 'Validation failed',
+            errors: validationErrors
+          });
+        }
+
         const photoData = {
           ...req.body,
           album: req.params.idalbum
         };
         const photoModel = new this.PhotoModel(photoData);
         photoModel.save()
-          .then((savedPhoto) => this.AlbumModel.findByIdAndUpdate(
-            req.params.idalbum,
-            { $push: { photos: savedPhoto._id } },
-            { new: true }
-          ))
-          .then((updatedAlbum) => {
-            res.status(201).json(updatedAlbum || {});
+          .then((savedPhoto) => {
+            if (!savedPhoto) {
+              throw new Error('Photo saving failed before album update.');
+            }
+            return this.AlbumModel.findByIdAndUpdate(
+              req.params.idalbum,
+              { $push: { photos: savedPhoto._id } },
+              { new: true, runValidators: true }
+            ).populate('photos');
           })
-          .catch(() => {
+          .then((updatedAlbum) => {
+            if (!updatedAlbum) {
+              return res.status(404).json({ code: 404, message: 'Album not found or failed to update after photo creation.' });
+            }
+            res.status(201).json(updatedAlbum);
+          })
+          .catch((saveOrUpdateErr) => {
+            console.error(`[ERROR] POST /albums/:idalbum/photo save/update -> ${saveOrUpdateErr.message}`);
+            if (photoModel._id) {
+                 this.PhotoModel.findByIdAndDelete(photoModel._id).catch(delErr => console.error(`Failed to clean up photo ${photoModel._id}: ${delErr.message}`));
+            }
             res.status(500).json({
               code: 500,
-              message: 'Internal Server error'
+              message: 'Error adding photo or updating album.'
             });
           });
       } catch (err) {
-        console.error(`[ERROR] albums/:idalbum/photo -> ${err}`);
-
-        res.status(400).json({
-          code: 400,
-          message: 'Bad request'
+        console.error(`[ERROR] POST /albums/:idalbum/photo -> ${err.message}`);
+        res.status(500).json({
+          code: 500,
+          message: 'An unexpected error occurred while adding photo.'
         });
       }
     });
@@ -255,27 +282,44 @@ const Photos = class Photos {
      *       500:
      *         description: Erreur interne du serveur
      */
-    // Assuming consistency, changing '/album/' to '/albums/' for this PUT route
     this.app.put('/albums/:idalbum/photo/:idphoto', verifyToken, (req, res) => {
       try {
+        const validationErrors = validateRequest(req.body, (body) => {
+          body.isObject(obj => {
+            obj('title').isString().minLength(1);
+            obj('imageUrl').isString();
+          });
+        });
+
+        if (validationErrors.length > 0) {
+          return res.status(400).json({
+            code: 400,
+            message: 'Validation failed',
+            errors: validationErrors
+          });
+        }
+
         this.PhotoModel.findByIdAndUpdate(
           req.params.idphoto,
           req.body,
-          { new: true }
+          { new: true, runValidators: true }
         ).then((photo) => {
-          res.status(200).json(photo || {});
-        }).catch(() => {
+          if (!photo) {
+            return res.status(404).json({ code: 404, message: 'Photo not found' });
+          }
+          res.status(200).json(photo);
+        }).catch((updateErr) => {
+          console.error(`[ERROR] PUT /albums/:idalbum/photo/:idphoto update -> ${updateErr.message}`);
           res.status(500).json({
             code: 500,
-            message: 'Internal Server error'
+            message: 'Error updating photo'
           });
         });
       } catch (err) {
-        console.error(`[ERROR] albums/:idalbum/photo/:idphoto -> ${err}`);
-
-        res.status(400).json({
-          code: 400,
-          message: 'Bad request'
+        console.error(`[ERROR] PUT /albums/:idalbum/photo/:idphoto -> ${err.message}`);
+        res.status(500).json({
+          code: 500,
+          message: 'An unexpected error occurred while updating photo.'
         });
       }
     });
