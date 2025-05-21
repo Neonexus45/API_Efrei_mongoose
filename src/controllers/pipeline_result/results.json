@@ -1,0 +1,29 @@
+{
+  "user": {
+    "name": "Viroslava Krishen",
+    "email": "viroslava.krishen@example.com",
+    "gender": "female",
+    "location": "Lozova, Ukraine",
+    "picture": "https://randomuser.me/api/portraits/thumb/women/41.jpg"
+  },
+  "phoneNumber": "+1 505-916-8197",
+  "iban": "FR25050060008497K0740178882",
+  "creditCard": {
+    "type": "Visa",
+    "date": "2027-07-21T09:00:20.6090041+00:00",
+    "fullName": "Teagan Power",
+    "cardNumber": "4870455740204818",
+    "cvv": "585",
+    "pin": 5087
+  },
+  "random_name": "Vicente Waddell",
+  "pet_name": "Tes",
+  "quote": {
+    "content": "Everyone has a sense of humor. If you don't laugh at jokes, you probably laugh at opinions.",
+    "author": "Criss Jami"
+  },
+  "joke": {
+    "type": "Pun",
+    "content": "I have these weird muscle spasms in my gluteus maximus.\nI figured out from my doctor that everything was alright:\nHe said \"Weird flex, butt okay.\""
+  }
+}

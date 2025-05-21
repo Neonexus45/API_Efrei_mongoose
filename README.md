@@ -1,79 +1,59 @@
-# API Efrei Mongoose - Branche de Démonstration Sécurité
+# API Efrei Mongoose - Pipeline de Génération d'Utilisateur Aléatoire
 
-Ce projet est une API Express simple utilisant Mongoose, axée sur la démonstration de diverses mesures de sécurité web.
+Ce projet (et plus spécifiquement cette branche) est dédié à la démonstration d'un script de pipeline qui agrège des données de plusieurs API web pour générer un profil utilisateur aléatoire.
 
-## Lancement du Projet
+## Pipeline de Génération d'Utilisateur Aléatoire
 
-1.  **Prérequis**: Node.js et npm installés.
-2.  **Installer les Dépendances**:
-    ```bash
-    npm install
-    ```
-3.  **Exécuter en Mode Développement (avec HTTPS)**:
-    ```bash
-    npm run dev
-    ```
-    Le serveur démarrera sur `https://localhost:3000` (ou le port spécifié dans `src/config.mjs`).
+Le script principal de cette démonstration est situé dans [`src/controllers/agregation.mjs`](src/controllers/agregation.mjs:1).
 
-    **Note sur HTTPS & Certificat Auto-signé**:
-    Le serveur utilise HTTPS avec un certificat SSL auto-signé généré dynamiquement. Lors de votre premier accès à `https://localhost:3000` dans votre navigateur, vous verrez un avertissement de sécurité. Vous devez accepter cet avertissement (généralement en cliquant sur "Avancé" puis "Continuer vers localhost (non sécurisé)") pour continuer. Ceci est un comportement attendu pour les certificats auto-signés.
+### Fonctionnement
 
-## Mesures de Sécurité Implémentées
+Le script [`agregation.mjs`](src/controllers/agregation.mjs:1) effectue les actions suivantes :
+1.  Récupère des informations de base sur l'utilisateur (nom, email, genre, localisation, photo) depuis l'API [RandomUser](https://randomuser.me/).
+2.  Récupère des données supplémentaires (numéro de téléphone, IBAN, détails de carte de crédit (fictifs), nom aléatoire, nom d'animal de compagnie) depuis l'API [Randommer](https://randommer.io/).
+3.  Récupère une citation aléatoire depuis l'API [ZenQuotes](https://zenquotes.io/).
+4.  Récupère une blague aléatoire (orientée programmation/divers) depuis l'API [JokeAPI](https://v2.jokeapi.dev/).
+5.  Combine toutes ces informations en un seul objet JSON.
+6.  Sauvegarde le profil utilisateur généré dans le fichier [`src/controllers/pipeline_result/results.json`](src/controllers/pipeline_result/results.json:1).
 
-Ce projet démontre les fonctionnalités de sécurité suivantes :
+### Exécution du Script
 
-### 1. Communication HTTPS
-Le serveur est configuré pour fonctionner exclusivement via HTTPS, assurant que toutes les données échangées entre le client et le serveur sont chiffrées. Un certificat SSL auto-signé est généré automatiquement au démarrage du serveur à des fins de développement et de démonstration.
-*   **Implémentation**: module `https` et paquet `selfsigned` dans [`src/server.mjs`](src/server.mjs:0).
+Pour exécuter le script directement et générer/mettre à jour le fichier de résultats :
+```bash
+node src/controllers/agregation.mjs
+```
+Après l'exécution, le fichier [`results.json`](src/controllers/pipeline_result/results.json:1) sera créé ou mis à jour dans le répertoire [`src/controllers/pipeline_result/`](src/controllers/pipeline_result/:1) avec les nouvelles données.
 
-### 2. CORS (Cross-Origin Resource Sharing)
-CORS est configuré pour n'autoriser que les requêtes provenant d'origines spécifiques (`http://localhost:8080` et `http://localhost:3000` par défaut). Cela empêche les pages web non autorisées de domaines différents d'effectuer des requêtes vers l'API.
-*   **Implémentation**: middleware `cors` dans [`src/server.mjs`](src/server.mjs:0).
+### Exemple de Résultat (`results.json`)
 
-### 3. Helmet pour les En-têtes de Sécurité
-Helmet.js est utilisé pour définir divers en-têtes HTTP qui aident à protéger contre les vulnérabilités web courantes comme XSS, clickjacking, etc.
-*   **Implémentation**: middleware `helmet` dans [`src/server.mjs`](src/server.mjs:0).
-*   L'en-tête `X-Powered-By` est également explicitement désactivé.
-
-### 4. Authentification JWT (JSON Web Token)
-Un système d'authentification basé sur les tokens JWT est implémenté :
-*   **Génération de Token**: Lors d'une inscription (`POST /user/`) ou d'une connexion (`POST /user/login`) réussie, un JWT est généré et retourné au client.
-*   **Vérification de Token**: Un middleware ([`src/middleware/auth.mjs`](src/middleware/auth.mjs:0)) protège des routes spécifiques. Ce middleware vérifie la présence d'un JWT valide dans l'en-tête `Authorization: Bearer <token>`.
-*   **Routes Protégées**: Toutes les routes pour les albums et les photos, ainsi que les routes pour récupérer/supprimer les détails d'utilisateurs spécifiques, sont protégées et nécessitent un JWT valide.
-*   **Implémentation**: paquet `jsonwebtoken`, middleware d'authentification personnalisé, et logique dans [`src/controllers/users.mjs`](src/controllers/users.mjs:0).
-
-### 5. Validation des Entrées
-Les entrées utilisateur pour l'inscription et la connexion sont validées pour assurer l'intégrité des données et prévenir les problèmes courants.
-*   **Inscription Utilisateur (`POST /user/`)**: Valide `firstname`, `lastname`, et optionnellement `avatar` (URL), `age` (plage d'entiers), `city` (longueur de chaîne).
-*   **Connexion Utilisateur (`POST /user/login`)**: Valide `firstname` et `lastname`.
-*   Si la validation échoue, une réponse `400 Bad Request` est envoyée avec des messages d'erreur détaillés.
-*   **Implémentation**: paquet `better-validator` dans [`src/controllers/users.mjs`](src/controllers/users.mjs:0).
-
-### 6. Limitation de Débit (Rate Limiting)
-Pour aider à atténuer les attaques DDOS et prévenir les abus, un limiteur de débit global est en place.
-*   **Limite**: Chaque adresse IP est limitée à 10 requêtes par heure sur tous les points de terminaison.
-*   Si la limite est dépassée, une erreur `429 Too Many Requests` est retournée.
-*   **Implémentation**: middleware `express-rate-limit` dans [`src/server.mjs`](src/server.mjs:0).
-
-## Documentation de l'API & Test avec Swagger UI
-
-Une documentation API interactive est disponible via Swagger UI.
-
-1.  **Accéder à Swagger UI**:
-    Une fois le serveur lancé, ouvrez votre navigateur et allez à :
-    `https://localhost:3000/api-docs` (N'oubliez pas d'accepter l'avertissement du certificat auto-signé).
-
-2.  **Utiliser l'Authentification JWT dans Swagger UI**:
-    De nombreux points de terminaison dans cette API sont protégés et nécessitent un JWT. Voici comment utiliser l'authentification dans Swagger :
-    *   **Étape 1: Obtenir un Token**
-        *   Utilisez le point de terminaison `POST /user/` pour inscrire un nouvel utilisateur (par ex., avec `firstname` et `lastname`).
-        *   Ou, si vous avez des identifiants utilisateur existants, utilisez le point de terminaison `POST /user/login`.
-        *   Exécutez la requête. Le corps de la réponse contiendra une chaîne `token`. Copiez cette valeur de token entière.
-    *   **Étape 2: Autoriser dans Swagger UI**
-        *   En haut à droite de la page Swagger UI, cliquez sur le bouton "Authorize".
-        *   Une boîte de dialogue apparaîtra. Dans la section "bearerAuth (JWT)", collez le token que vous avez copié dans le champ "Value".
-        *   Cliquez sur le bouton "Authorize" dans la boîte de dialogue, puis "Close".
-    *   **Étape 3: Tester les Points de Terminaison Protégés**
-        *   Vous êtes maintenant authentifié dans Swagger UI pour votre session actuelle.
-        *   Essayez n'importe quel point de terminaison protégé (par ex., `GET /albums`, `POST /album/{id}/photo`, `GET /user/{id}`). Swagger inclura automatiquement votre JWT dans l'en-tête `Authorization: Bearer <token>` pour ces requêtes.
-        *   Si vous essayez un point de terminaison protégé sans autorisation, ou avec un token invalide/expiré, vous recevrez une erreur `401 Unauthorized` ou `403 Forbidden`.
+Le fichier JSON généré contiendra une structure similaire à celle-ci :
+```json
+{
+  "user": {
+    "name": "Viroslava Krishen",
+    "email": "viroslava.krishen@example.com",
+    "gender": "female",
+    "location": "Lozova, Ukraine",
+    "picture": "https://randomuser.me/api/portraits/thumb/women/41.jpg"
+  },
+  "phoneNumber": "+1 505-916-8197",
+  "iban": "FR25050060008497K0740178882",
+  "creditCard": {
+    "type": "Visa",
+    "date": "2027-07-21T09:00:20.6090041+00:00",
+    "fullName": "Teagan Power",
+    "cardNumber": "4870455740204818",
+    "cvv": "585",
+    "pin": 5087
+  },
+  "random_name": "Vicente Waddell",
+  "pet_name": "Tes",
+  "quote": {
+    "content": "Everyone has a sense of humor. If you don't laugh at jokes, you probably laugh at opinions.",
+    "author": "Criss Jami"
+  },
+  "joke": {
+    "type": "Pun",
+    "content": "I have these weird muscle spasms in my gluteus maximus.\\nI figured out from my doctor that everything was alright:\\nHe said \\"Weird flex, butt okay.\\""
+  }
+}
